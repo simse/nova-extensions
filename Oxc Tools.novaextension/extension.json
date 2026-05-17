@@ -1,0 +1,50 @@
+{
+    "identifier": "io.simse.OxcTools",
+    "name": "Oxc Tools",
+    "organization": "Simon Industries",
+    "description": "LSP integration for oxlint and oxfmt. Lints JS/TS/JSX/TSX and formats a wide range of web file types on save.",
+    "version": "0.1.0",
+    "categories": ["formatters", "issues"],
+    "license": "MIT",
+    "repository": "https://github.com/simse/nova-extensions",
+    "bugs": "https://github.com/simse/nova-extensions/issues",
+    "keywords": ["oxc", "oxlint", "oxfmt", "javascript", "typescript", "linter", "formatter"],
+
+    "main": "main.js",
+
+    "activationEvents": [
+        "onLanguage:javascript",
+        "onLanguage:typescript",
+        "onLanguage:jsx",
+        "onLanguage:tsx",
+        "onLanguage:vue",
+        "onLanguage:svelte",
+        "onLanguage:css",
+        "onLanguage:scss",
+        "onLanguage:less",
+        "onLanguage:html",
+        "onLanguage:json",
+        "onLanguage:yaml",
+        "onLanguage:markdown",
+        "onLanguage:graphql",
+        "onLanguage:toml"
+    ],
+
+    "entitlements": {
+        "process": true,
+        "filesystem": "readonly"
+    },
+
+    "commands": {
+        "extensions": [
+            {
+                "title": "Restart oxlint Server",
+                "command": "io.simse.OxcTools.restartOxlint"
+            },
+            {
+                "title": "Restart oxfmt Server",
+                "command": "io.simse.OxcTools.restartOxfmt"
+            }
+        ]
+    }
+}
