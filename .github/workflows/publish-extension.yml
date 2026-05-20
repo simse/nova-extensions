@@ -1,0 +1,41 @@
+name: Publish Nova Extension
+
+on:
+  workflow_call:
+    inputs:
+      extension-path:
+        description: Path to the .novaextension directory (relative to repo root)
+        required: true
+        type: string
+    secrets:
+      nova-email:
+        required: true
+      nova-password:
+        required: true
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nova
+        run: brew install --cask nova
+
+      - name: Log in to Nova Extension Library
+        env:
+          NOVA_EMAIL: ${{ secrets.nova-email }}
+          NOVA_PASSWORD: ${{ secrets.nova-password }}
+        run: |
+          NOVA_BIN="/Applications/Nova.app/Contents/SharedSupport/nova"
+          printf '%s\n%s\n' "$NOVA_EMAIL" "$NOVA_PASSWORD" | "$NOVA_BIN" extension login
+          "$NOVA_BIN" extension whoami
+
+      - name: Publish extension
+        run: |
+          "/Applications/Nova.app/Contents/SharedSupport/nova" extension publish "${{ inputs.extension-path }}"
+
+      - name: Log out
+        if: always()
+        run: |
+          "/Applications/Nova.app/Contents/SharedSupport/nova" extension logout || true

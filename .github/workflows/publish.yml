@@ -1,0 +1,16 @@
+name: Publish
+
+on:
+  pull_request:
+    paths:
+      - "**/*.novaextension/**"
+      - ".github/workflows/**"
+
+jobs:
+  oxc-tools:
+    uses: ./.github/workflows/publish-extension.yml
+    with:
+      extension-path: Oxc Tools.novaextension
+    secrets:
+      nova-email: ${{ secrets.NOVA_EMAIL }}
+      nova-password: ${{ secrets.NOVA_PASSWORD }}
