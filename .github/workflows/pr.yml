@@ -5,6 +5,11 @@ on:
     paths:
       - "**/*.novaextension/**"
       - ".github/workflows/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build.mjs"
+      - "types/**"
 
 jobs:
   oxc-tools:
