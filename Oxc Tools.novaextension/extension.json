@@ -3,7 +3,7 @@
     "name": "Oxc Tools",
     "organization": "Simon Industries",
     "description": "LSP integration for oxlint and oxfmt. Lints JS/TS/JSX/TSX and formats a wide range of web file types on save.",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "categories": ["formatters", "issues"],
     "license": "MIT",
     "repository": "https://github.com/simse/nova-extensions",

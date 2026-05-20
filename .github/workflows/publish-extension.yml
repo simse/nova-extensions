@@ -1,0 +1,95 @@
+name: Publish Nova Extension
+
+on:
+  workflow_call:
+    inputs:
+      extension-path:
+        description: Path to the .novaextension directory (relative to repo root)
+        required: true
+        type: string
+      tag-prefix:
+        description: Tag prefix for the GitHub Release (e.g. "oxc-tools" → "oxc-tools-v0.1.0")
+        required: true
+        type: string
+    secrets:
+      nova_email:
+        required: true
+      nova_password:
+        required: true
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read extension metadata
+        id: meta
+        run: |
+          VERSION=$(jq -r .version "${{ inputs.extension-path }}/extension.json")
+          NAME=$(jq -r .name "${{ inputs.extension-path }}/extension.json")
+          TAG="${{ inputs.tag-prefix }}-v${VERSION}"
+          ZIP="${{ inputs.tag-prefix }}-v${VERSION}.zip"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME"       >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "zip=$ZIP"         >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.meta.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${{ steps.meta.outputs.tag }} already exists — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Nova
+        if: success() && steps.check.outputs.skip == 'false'
+        run: brew install --cask nova
+
+      - name: Log in to Nova Extension Library
+        if: success() && steps.check.outputs.skip == 'false'
+        env:
+          NOVA_EMAIL: ${{ secrets.nova_email }}
+          NOVA_PASSWORD: ${{ secrets.nova_password }}
+        run: |
+          NOVA_BIN="/Applications/Nova.app/Contents/SharedSupport/nova"
+          printf '%s\n%s\n' "$NOVA_EMAIL" "$NOVA_PASSWORD" | "$NOVA_BIN" extension login
+          "$NOVA_BIN" extension whoami
+
+      - name: Validate extension
+        if: success() && steps.check.outputs.skip == 'false'
+        run: |
+          "/Applications/Nova.app/Contents/SharedSupport/nova" extension validate "${{ inputs.extension-path }}"
+
+      - name: Publish extension to Nova
+        if: success() && steps.check.outputs.skip == 'false'
+        run: |
+          echo y | "/Applications/Nova.app/Contents/SharedSupport/nova" extension publish "${{ inputs.extension-path }}"
+
+      - name: Zip extension
+        if: success() && steps.check.outputs.skip == 'false'
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "${{ inputs.extension-path }}" "${{ steps.meta.outputs.zip }}"
+
+      - name: Create GitHub Release
+        if: success() && steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${{ steps.meta.outputs.name }} v${{ steps.meta.outputs.version }}" \
+            --notes "Published to the Nova Extension Library." \
+            "${{ steps.meta.outputs.zip }}"
+
+      - name: Log out
+        if: always() && steps.check.outputs.skip == 'false'
+        run: |
+          "/Applications/Nova.app/Contents/SharedSupport/nova" extension logout || true

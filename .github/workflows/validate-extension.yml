@@ -1,0 +1,22 @@
+name: Validate Nova Extension
+
+on:
+  workflow_call:
+    inputs:
+      extension-path:
+        description: Path to the .novaextension directory (relative to repo root)
+        required: true
+        type: string
+
+jobs:
+  validate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nova
+        run: brew install --cask nova
+
+      - name: Validate extension
+        run: |
+          "/Applications/Nova.app/Contents/SharedSupport/nova" extension validate "${{ inputs.extension-path }}"

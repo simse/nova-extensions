@@ -1,0 +1,13 @@
+name: PR
+
+on:
+  pull_request:
+    paths:
+      - "**/*.novaextension/**"
+      - ".github/workflows/**"
+
+jobs:
+  oxc-tools:
+    uses: ./.github/workflows/validate-extension.yml
+    with:
+      extension-path: Oxc Tools.novaextension
