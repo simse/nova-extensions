@@ -6,11 +6,15 @@ on:
       - "**/*.novaextension/**"
       - ".github/workflows/**"
 
+permissions:
+  contents: write
+
 jobs:
   oxc-tools:
     uses: ./.github/workflows/publish-extension.yml
     with:
       extension-path: Oxc Tools.novaextension
+      tag-prefix: oxc-tools
     secrets:
       nova_email: ${{ secrets.NOVA_EMAIL }}
       nova_password: ${{ secrets.NOVA_PASSWORD }}
