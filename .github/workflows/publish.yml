@@ -12,5 +12,5 @@ jobs:
     with:
       extension-path: Oxc Tools.novaextension
     secrets:
-      nova-email: ${{ secrets.NOVA_EMAIL }}
-      nova-password: ${{ secrets.NOVA_PASSWORD }}
+      nova_email: ${{ secrets.NOVA_EMAIL }}
+      nova_password: ${{ secrets.NOVA_PASSWORD }}

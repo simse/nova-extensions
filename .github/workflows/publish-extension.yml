@@ -8,9 +8,9 @@ on:
         required: true
         type: string
     secrets:
-      nova-email:
+      nova_email:
         required: true
-      nova-password:
+      nova_password:
         required: true
 
 jobs:
@@ -24,8 +24,8 @@ jobs:
 
       - name: Log in to Nova Extension Library
         env:
-          NOVA_EMAIL: ${{ secrets.nova-email }}
-          NOVA_PASSWORD: ${{ secrets.nova-password }}
+          NOVA_EMAIL: ${{ secrets.nova_email }}
+          NOVA_PASSWORD: ${{ secrets.nova_password }}
         run: |
           NOVA_BIN="/Applications/Nova.app/Contents/SharedSupport/nova"
           printf '%s\n%s\n' "$NOVA_EMAIL" "$NOVA_PASSWORD" | "$NOVA_BIN" extension login
