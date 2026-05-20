@@ -1,0 +1,35 @@
+name: Validate Nova Extension
+
+on:
+  workflow_call:
+    inputs:
+      extension-path:
+        description: Path to the .novaextension directory (relative to repo root)
+        required: true
+        type: string
+
+jobs:
+  validate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nova
+        run: brew install --cask nova
+
+      - name: Debug — list Nova.app tree
+        run: |
+          if ! command -v tree >/dev/null 2>&1; then
+            brew install tree
+          fi
+          tree /Applications/Nova.app || find /Applications/Nova.app -print
+
+      - name: Validate extension
+        run: |
+          NOVA_BIN="/Applications/Nova.app/Contents/SharedSupport/nova"
+          if [ ! -x "$NOVA_BIN" ]; then
+            echo "Nova CLI not found at $NOVA_BIN — searching for candidates..."
+            find /Applications/Nova.app -type f -name nova
+            exit 1
+          fi
+          "$NOVA_BIN" extension validate "${{ inputs.extension-path }}"
