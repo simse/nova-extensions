@@ -16,11 +16,23 @@ const oxfmtSyntaxes = [
   "markdown",
   "graphql",
   "toml",
-];
-const oxlintSyntaxes = ["javascript", "typescript", "jsx", "tsx"];
-const formatSyntaxes = new Set(oxfmtSyntaxes);
+] as const;
 
-const servers = {
+const oxlintSyntaxes = ["javascript", "typescript", "jsx", "tsx"] as const;
+const formatSyntaxes: ReadonlySet<string> = new Set(oxfmtSyntaxes);
+
+interface ServerConfig {
+  identifier: string;
+  name: string;
+  path: string;
+  syntaxes: readonly string[];
+  configGlobs: readonly string[];
+  client: LanguageClient | null;
+  watchers: Disposable[];
+  restartTimer: ReturnType<typeof setTimeout> | null;
+}
+
+const servers: { oxfmt: ServerConfig; oxlint: ServerConfig } = {
   oxfmt: {
     identifier: "io.simse.OxcTools.oxfmt",
     name: "oxfmt",
@@ -40,52 +52,63 @@ const servers = {
     name: "oxlint",
     path: "./node_modules/oxlint/bin/oxlint",
     syntaxes: oxlintSyntaxes,
-    configGlobs: [
-      "**/.oxlintrc.json",
-      "**/oxlint.config.ts",
-    ],
+    configGlobs: ["**/.oxlintrc.json", "**/oxlint.config.ts"],
     client: null,
     watchers: [],
     restartTimer: null,
   },
 };
 
-exports.activate = function () {
+interface LspPosition {
+  line: number;
+  character: number;
+}
+interface LspRange {
+  start: LspPosition;
+  end: LspPosition;
+}
+interface LspTextEdit {
+  range: LspRange;
+  newText: string;
+}
+
+export function activate(): void {
   startServer(servers.oxfmt);
   startServer(servers.oxlint);
   installWatchers(servers.oxfmt);
   installWatchers(servers.oxlint);
 
   nova.commands.register("io.simse.OxcTools.restartOxlint", () =>
-    restartServer(servers.oxlint)
+    restartServer(servers.oxlint),
   );
   nova.commands.register("io.simse.OxcTools.restartOxfmt", () =>
-    restartServer(servers.oxfmt)
+    restartServer(servers.oxfmt),
   );
 
   nova.workspace.onDidAddTextEditor((editor) => {
     editor.onWillSave(async (editor) => {
       const client = servers.oxfmt.client;
       if (!client || !client.running) return;
-      if (!formatSyntaxes.has(editor.document.syntax)) return;
+      const syntax = editor.document.syntax;
+      if (!syntax || !formatSyntaxes.has(syntax)) return;
       await formatEditor(editor, client);
     });
   });
-};
+}
 
-exports.deactivate = function () {
+export function deactivate(): void {
   disposeWatchers(servers.oxfmt);
   disposeWatchers(servers.oxlint);
   stopServer(servers.oxfmt);
   stopServer(servers.oxlint);
-};
+}
 
-function startServer(server) {
+function startServer(server: ServerConfig): void {
   const client = new LanguageClient(
     server.identifier,
     server.name,
     { path: server.path, args: ["--lsp"], type: "stdio" },
-    { syntaxes: server.syntaxes, debug: nova.inDevMode() }
+    { syntaxes: [...server.syntaxes], debug: nova.inDevMode() },
   );
 
   client.onDidStop((err) => {
@@ -97,20 +120,21 @@ function startServer(server) {
   try {
     client.start();
   } catch (err) {
-    console.error(`Failed to start ${server.name} LSP:`, err.message);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Failed to start ${server.name} LSP:`, message);
   }
 
   server.client = client;
 }
 
-function stopServer(server) {
+function stopServer(server: ServerConfig): void {
   if (server.client) {
     server.client.stop();
     server.client = null;
   }
 }
 
-function restartServer(server) {
+function restartServer(server: ServerConfig): void {
   console.log(`Restarting ${server.name} LSP`);
   stopServer(server);
   startServer(server);
@@ -118,7 +142,7 @@ function restartServer(server) {
 
 // Debounces filesystem events and absorbs nova.fs.watch's synthetic initial fire
 // for files that already exist when watching begins.
-function scheduleRestart(server) {
+function scheduleRestart(server: ServerConfig): void {
   if (server.restartTimer) {
     clearTimeout(server.restartTimer);
   }
@@ -128,18 +152,14 @@ function scheduleRestart(server) {
   }, RESTART_DEBOUNCE_MS);
 }
 
-function installWatchers(server) {
+function installWatchers(server: ServerConfig): void {
   for (const glob of server.configGlobs) {
-    server.watchers.push(
-      nova.fs.watch(glob, () => scheduleRestart(server))
-    );
+    server.watchers.push(nova.fs.watch(glob, () => scheduleRestart(server)));
   }
 }
 
-function disposeWatchers(server) {
-  for (const w of server.watchers) {
-    w.dispose();
-  }
+function disposeWatchers(server: ServerConfig): void {
+  for (const w of server.watchers) w.dispose();
   server.watchers = [];
   if (server.restartTimer) {
     clearTimeout(server.restartTimer);
@@ -147,7 +167,10 @@ function disposeWatchers(server) {
   }
 }
 
-async function formatEditor(editor, client) {
+async function formatEditor(
+  editor: TextEditor,
+  client: LanguageClient,
+): Promise<void> {
   const params = {
     textDocument: { uri: editor.document.uri },
     options: {
@@ -156,11 +179,15 @@ async function formatEditor(editor, client) {
     },
   };
 
-  let edits;
+  let edits: LspTextEdit[] | null;
   try {
-    edits = await client.sendRequest("textDocument/formatting", params);
+    edits = (await client.sendRequest(
+      "textDocument/formatting",
+      params,
+    )) as LspTextEdit[] | null;
   } catch (err) {
-    console.error("oxfmt format request failed:", err.message);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("oxfmt format request failed:", message);
     return;
   }
   if (!edits || edits.length === 0) return;
@@ -168,13 +195,16 @@ async function formatEditor(editor, client) {
   await applyTextEdits(editor, edits);
 }
 
-function applyTextEdits(editor, edits) {
+function applyTextEdits(
+  editor: TextEditor,
+  edits: LspTextEdit[],
+): Promise<void> {
   const text = editor.getTextInRange(new Range(0, editor.document.length));
   const lineStarts = computeLineStarts(text);
 
   const offsetEdits = edits.map((edit) => ({
-    start: lineStarts[edit.range.start.line] + edit.range.start.character,
-    end: lineStarts[edit.range.end.line] + edit.range.end.character,
+    start: (lineStarts[edit.range.start.line] ?? 0) + edit.range.start.character,
+    end: (lineStarts[edit.range.end.line] ?? 0) + edit.range.end.character,
     newText: edit.newText,
   }));
   offsetEdits.sort((a, b) => b.start - a.start);
@@ -186,7 +216,7 @@ function applyTextEdits(editor, edits) {
   });
 }
 
-function computeLineStarts(text) {
+function computeLineStarts(text: string): number[] {
   const lineStarts = [0];
   for (let i = 0; i < text.length; i++) {
     if (text.charCodeAt(i) === 10) {

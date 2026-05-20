@@ -1,1 +1,5 @@
 .DS_Store
+node_modules/
+Oxc Tools.novaextension/Scripts/main.js
+Oxc Tools.novaextension/Scripts/main.js.map
+*.tsbuildinfo
