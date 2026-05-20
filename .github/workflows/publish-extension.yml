@@ -71,7 +71,7 @@ jobs:
       - name: Publish extension to Nova
         if: success() && steps.check.outputs.skip == 'false'
         run: |
-          "/Applications/Nova.app/Contents/SharedSupport/nova" extension publish "${{ inputs.extension-path }}"
+          echo y | "/Applications/Nova.app/Contents/SharedSupport/nova" extension publish "${{ inputs.extension-path }}"
 
       - name: Zip extension
         if: success() && steps.check.outputs.skip == 'false'
